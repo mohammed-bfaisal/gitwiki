@@ -1,0 +1,1877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitWiki — GitHub as Wikipedia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Linux+Libertine+Display&family=Linux+Libertine:ital,wght@0,400;0,600;1,400&family=Source+Code+Pro:wght@400;500&family=Noto+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Variables ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #f8f9fa;
+  --surface:     #ffffff;
+  --border:      #a2a9b1;
+  --border-soft: #eaecf0;
+  --text:        #202122;
+  --text-muted:  #54595d;
+  --text-light:  #72777d;
+  --link:        #3366cc;
+  --link-hover:  #0645ad;
+  --link-visited:#6b4ba1;
+  --accent:      #3366cc;
+  --warn:        #fc3;
+  --success:     #14866d;
+  --danger:      #d33;
+  --infobox-bg:  #f8f9fa;
+  --infobox-border: #a2a9b1;
+  --toc-bg:      #f8f9fa;
+  --code-bg:     #f8f8f8;
+  --sidebar-w:   260px;
+  --content-max: 960px;
+  --font-serif:  'Linux Libertine', 'Linux Libertine Display', Georgia, serif;
+  --font-sans:   'Noto Sans', system-ui, sans-serif;
+  --font-mono:   'Source Code Pro', 'Courier New', monospace;
+}
+
+/* ── Dark Mode ─────────────────────────────────────────────────── */
+body.dark {
+  --bg:             #0d1117;
+  --surface:        #161b22;
+  --border:         #444c56;
+  --border-soft:    #21262d;
+  --text:           #e6edf3;
+  --text-muted:     #8b949e;
+  --text-light:     #6e7681;
+  --link:           #58a6ff;
+  --link-hover:     #79c0ff;
+  --link-visited:   #bc8cff;
+  --accent:         #58a6ff;
+  --warn:           #d29922;
+  --success:        #3fb950;
+  --danger:         #f85149;
+  --infobox-bg:     #161b22;
+  --infobox-border: #444c56;
+  --toc-bg:         #161b22;
+  --code-bg:        #0d1117;
+}
+body.dark .infobox-title       { background: #1c3555; }
+body.dark .sidebar-item:hover  { background: #1c2128; }
+body.dark .sidebar-item.active { background: #1c3555; color: var(--link); }
+body.dark .repo-entry:hover    { background: #1c2128; }
+body.dark .topic-card:hover    { border-color: var(--accent); box-shadow: 0 1px 6px rgba(88,166,255,.12); }
+body.dark #search-btn          { background: #21262d; }
+body.dark #search-btn:hover    { background: #2d333b; }
+body.dark .readme-content th              { background: #21262d; }
+body.dark .readme-content tr:nth-child(even) td { background: #0d1117; }
+body.dark .notice              { background: #2d2000; color: #e3b341; border-color: #d29922; }
+body.dark .error-box           { background: #2d0d0d; }
+body.dark .page-btn:hover      { background: #21262d; }
+body.dark .page-btn:disabled   { background: #161b22; }
+body.dark .format-card.selected { background: #1c2128; }
+body.dark .scope-option.selected { background: #1c2128; }
+body.dark .format-card:hover   { background: #1c2128; }
+body.dark .scope-option:hover  { border-color: var(--border); }
+
+/* ── Dark mode toggle ──────────────────────────────────────────── */
+#dark-toggle {
+display: flex;
+align-items: center;
+gap: 6px;
+cursor: pointer;
+font-size: 12px;
+color: var(--text-muted);
+padding: 3px 8px;
+border: 1px solid var(--border-soft);
+border-radius: 2px;
+background: none;
+font-family: var(--font-sans);
+white-space: nowrap;
+transition: border-color .15s, color .15s;
+}
+#dark-toggle:hover { border-color: var(--border); color: var(--text); }
+
+.toggle-track {
+  width: 28px; height: 15px;
+  background: var(--border);
+  border-radius: 8px;
+  position: relative;
+  transition: background .2s;
+  flex-shrink: 0;
+}
+body.dark .toggle-track { background: var(--accent); }
+.toggle-thumb {
+  width: 11px; height: 11px;
+  background: #fff;
+  border-radius: 50%;
+  position: absolute;
+  top: 2px; left: 2px;
+  transition: left .2s;
+}
+body.dark .toggle-thumb { left: 15px; }
+
+/* ── Download button ───────────────────────────────────────────── */
+#download-btn {
+display: flex;
+align-items: center;
+gap: 5px;
+padding: 4px 10px;
+background: var(--accent);
+color: #fff;
+border: none;
+border-radius: 2px;
+font-size: 12px;
+font-family: var(--font-sans);
+cursor: pointer;
+transition: opacity .15s;
+white-space: nowrap;
+}
+#download-btn:hover { opacity: .85; }
+
+/* ── Download Modal ────────────────────────────────────────────── */
+#modal-overlay {
+display: none;
+position: fixed;
+inset: 0;
+background: rgba(0,0,0,.5);
+z-index: 100;
+align-items: center;
+justify-content: center;
+}
+#modal-overlay.open { display: flex; }
+
+#modal {
+background: var(--surface);
+border: 1px solid var(--border);
+border-radius: 4px;
+width: 540px;
+max-width: 95vw;
+max-height: 88vh;
+overflow-y: auto;
+box-shadow: 0 12px 40px rgba(0,0,0,.35);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.modal-header h2 {
+  font-family: var(--font-serif);
+  font-size: 18px;
+  font-weight: 400;
+  color: var(--text);
+}
+#modal-close {
+background: none; border: none;
+font-size: 20px; cursor: pointer;
+color: var(--text-muted); line-height: 1;
+padding: 2px 6px; border-radius: 2px;
+}
+#modal-close:hover { color: var(--text); background: var(--bg); }
+
+.modal-body { padding: 18px; }
+
+.modal-section-title {
+  font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .5px;
+  color: var(--text-muted); margin-bottom: 10px;
+}
+
+.format-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.format-card {
+  border: 2px solid var(--border-soft);
+  border-radius: 3px; padding: 12px;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+  text-align: center;
+}
+.format-card:hover { border-color: var(--accent); background: var(--bg); }
+.format-card.selected { border-color: var(--accent); background: var(--bg); }
+.format-card .fmt-icon { font-size: 22px; margin-bottom: 5px; }
+.format-card .fmt-name { font-size: 13px; font-weight: 600; color: var(--text); }
+.format-card .fmt-desc { font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+
+.scope-options { margin-bottom: 18px; }
+
+.scope-option {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 9px 12px;
+  border: 1px solid var(--border-soft); border-radius: 3px;
+  margin-bottom: 6px; cursor: pointer;
+  transition: border-color .15s;
+}
+.scope-option:hover { border-color: var(--border); }
+.scope-option.selected { border-color: var(--accent); background: var(--bg); }
+.scope-option input[type=radio] { margin-top: 3px; accent-color: var(--accent); }
+.scope-option-label { font-size: 13px; font-weight: 500; color: var(--text); }
+.scope-option-desc  { font-size: 11px; color: var(--text-muted); }
+
+#download-progress { display: none; margin-bottom: 14px; }
+.progress-bar-wrap {
+  height: 6px; background: var(--border-soft);
+  border-radius: 3px; overflow: hidden; margin: 8px 0;
+}
+.progress-bar-fill {
+  height: 100%; background: var(--accent);
+  border-radius: 3px; transition: width .3s; width: 0%;
+}
+#progress-text { font-size: 12px; color: var(--text-muted); }
+
+.modal-actions {
+  display: flex; gap: 8px; justify-content: flex-end;
+  padding-top: 14px; border-top: 1px solid var(--border-soft);
+  margin-top: 4px;
+}
+.btn-primary {
+  background: var(--accent); color: #fff; border: none;
+  border-radius: 2px; padding: 7px 16px;
+  font-size: 13px; font-family: var(--font-sans);
+  cursor: pointer; transition: opacity .15s;
+}
+.btn-primary:hover { opacity: .85; }
+.btn-primary:disabled { opacity: .4; cursor: default; }
+.btn-secondary {
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); border-radius: 2px;
+  padding: 7px 16px; font-size: 13px;
+  font-family: var(--font-sans); cursor: pointer;
+}
+.btn-secondary:hover { background: var(--border-soft); }
+
+body {
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.6;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ── Layout ────────────────────────────────────────────────────── */
+#shell { display: flex; min-height: 100vh; }
+
+#sidebar {
+width: var(--sidebar-w);
+min-width: var(--sidebar-w);
+background: var(--surface);
+border-right: 1px solid var(--border-soft);
+display: flex;
+flex-direction: column;
+position: sticky;
+top: 0;
+height: 100vh;
+overflow-y: auto;
+z-index: 10;
+}
+
+#main {
+flex: 1;
+min-width: 0;
+display: flex;
+flex-direction: column;
+}
+
+/* ── Header / Topbar ───────────────────────────────────────────── */
+#topbar {
+background: var(--surface);
+border-bottom: 1px solid var(--border-soft);
+padding: 6px 16px;
+display: flex;
+align-items: center;
+gap: 12px;
+position: sticky;
+top: 0;
+z-index: 5;
+}
+
+#topbar .breadcrumb {
+flex: 1;
+font-size: 13px;
+color: var(--text-muted);
+}
+
+#topbar .breadcrumb a {
+color: var(--link);
+text-decoration: none;
+}
+
+#topbar .breadcrumb a:hover { text-decoration: underline; }
+#topbar .breadcrumb span { color: var(--text-light); }
+
+#search-bar {
+display: flex;
+gap: 6px;
+align-items: center;
+}
+
+#search-input {
+border: 1px solid var(--border);
+border-radius: 2px;
+padding: 4px 8px;
+font-family: var(--font-sans);
+font-size: 13px;
+width: 220px;
+outline: none;
+background: var(--surface);
+color: var(--text);
+}
+
+#search-input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(51,102,204,.15); }
+
+#search-btn {
+background: #f8f9fa;
+border: 1px solid var(--border);
+border-radius: 2px;
+padding: 4px 10px;
+font-size: 13px;
+cursor: pointer;
+font-family: var(--font-sans);
+color: var(--text);
+}
+#search-btn:hover { background: #e9eaeb; }
+
+#rate-badge {
+font-size: 11px;
+color: var(--text-light);
+padding: 2px 6px;
+border: 1px solid var(--border-soft);
+border-radius: 2px;
+white-space: nowrap;
+cursor: help;
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────── */
+.sidebar-logo {
+  padding: 14px 16px 10px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.sidebar-logo h1 {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 400;
+  color: var(--text);
+  letter-spacing: -0.3px;
+}
+
+.sidebar-logo p {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.sidebar-section {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.sidebar-section-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0 16px 6px;
+}
+
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+  text-decoration: none;
+  transition: background .1s;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+}
+
+.sidebar-item:hover { background: #f0f0f0; }
+.sidebar-item.active { background: #eaf3fb; color: var(--link); font-weight: 500; }
+.sidebar-item .icon { font-size: 14px; flex-shrink: 0; }
+.sidebar-item .count { margin-left: auto; font-size: 11px; color: var(--text-light); }
+
+.lang-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+#sidebar-footer {
+margin-top: auto;
+padding: 10px 16px;
+font-size: 11px;
+color: var(--text-light);
+border-top: 1px solid var(--border-soft);
+}
+
+/* ── Content area ──────────────────────────────────────────────── */
+#content {
+max-width: var(--content-max);
+margin: 0 auto;
+padding: 24px 32px;
+width: 100%;
+}
+
+/* ── Page: Home ────────────────────────────────────────────────── */
+.home-banner {
+  border-bottom: 1px solid var(--border-soft);
+  padding-bottom: 20px;
+  margin-bottom: 24px;
+}
+
+.home-banner h2 {
+  font-family: var(--font-serif);
+  font-size: 28px;
+  font-weight: 400;
+  color: var(--text);
+}
+
+.home-banner p {
+  color: var(--text-muted);
+  margin-top: 6px;
+  font-size: 14px;
+}
+
+.topic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.topic-card {
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  border-radius: 2px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+}
+
+.topic-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+
+.topic-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.topic-card-icon { font-size: 18px; }
+
+.topic-card h3 {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--link);
+}
+
+.topic-card p {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* ── Wikipedia article style ───────────────────────────────────── */
+.wiki-article {}
+
+.wiki-title {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 400;
+  border-bottom: 1px solid var(--border-soft);
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+  color: var(--text);
+}
+
+.wiki-subtitle {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+/* ── Infobox (Wikipedia right-side box) ────────────────────────── */
+.infobox {
+  float: right;
+  clear: right;
+  margin: 0 0 16px 24px;
+  border: 1px solid var(--infobox-border);
+  background: var(--infobox-bg);
+  font-size: 12.5px;
+  width: 280px;
+  border-collapse: collapse;
+}
+
+.infobox-title {
+  background: #cee0f2;
+  text-align: center;
+  padding: 6px 10px;
+  font-weight: 600;
+  font-size: 13px;
+  border-bottom: 1px solid var(--border);
+}
+
+.infobox-row {
+  display: flex;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.infobox-label {
+  width: 100px;
+  min-width: 100px;
+  padding: 4px 8px;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: #f8f9fa;
+  border-right: 1px solid var(--border-soft);
+}
+
+.infobox-value {
+  padding: 4px 8px;
+  color: var(--text);
+  flex: 1;
+  word-break: break-word;
+}
+
+.infobox-value a { color: var(--link); text-decoration: none; }
+.infobox-value a:hover { text-decoration: underline; }
+
+/* ── TOC ───────────────────────────────────────────────────────── */
+.toc {
+  float: left;
+  clear: left;
+  margin: 0 24px 16px 0;
+  background: var(--toc-bg);
+  border: 1px solid var(--border);
+  padding: 10px 14px;
+  font-size: 13px;
+  min-width: 160px;
+  max-width: 240px;
+}
+
+.toc-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.toc ol { padding-left: 18px; }
+.toc li { margin: 2px 0; }
+.toc a { color: var(--link); text-decoration: none; font-size: 13px; }
+.toc a:hover { text-decoration: underline; }
+
+/* ── Wiki sections ─────────────────────────────────────────────── */
+.wiki-section {
+  margin-top: 20px;
+  clear: both;
+}
+
+.wiki-h2 {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 400;
+  border-bottom: 1px solid var(--border-soft);
+  padding-bottom: 3px;
+  margin-bottom: 12px;
+  color: var(--text);
+}
+
+.wiki-h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  margin-top: 14px;
+  color: var(--text);
+}
+
+/* ── README render ─────────────────────────────────────────────── */
+.readme-content {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--text);
+}
+
+.readme-content h1, .readme-content h2 {
+  font-family: var(--font-serif);
+  font-weight: 400;
+  border-bottom: 1px solid var(--border-soft);
+  padding-bottom: 3px;
+  margin: 20px 0 10px;
+}
+
+.readme-content h1 { font-size: 22px; }
+.readme-content h2 { font-size: 18px; }
+.readme-content h3 { font-size: 15px; font-weight: 600; margin: 14px 0 6px; }
+.readme-content h4, .readme-content h5 { font-size: 13.5px; font-weight: 600; margin: 10px 0 4px; }
+
+.readme-content p { margin-bottom: 10px; }
+
+.readme-content a { color: var(--link); }
+.readme-content a:hover { color: var(--link-hover); }
+
+.readme-content code {
+  background: var(--code-bg);
+  border: 1px solid var(--border-soft);
+  border-radius: 2px;
+  padding: 1px 4px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.readme-content pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border-soft);
+  border-radius: 2px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  margin: 10px 0;
+}
+
+.readme-content pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+}
+
+.readme-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 12px 0;
+  font-size: 13px;
+}
+
+.readme-content th, .readme-content td {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  text-align: left;
+}
+
+.readme-content th { background: #eaecf0; font-weight: 600; }
+.readme-content tr:nth-child(even) td { background: #f8f9fa; }
+
+.readme-content img { max-width: 100%; border: 1px solid var(--border-soft); border-radius: 2px; }
+
+.readme-content blockquote {
+  border-left: 3px solid var(--border);
+  padding: 4px 14px;
+  margin: 10px 0;
+  color: var(--text-muted);
+}
+
+.readme-content ul, .readme-content ol { padding-left: 24px; margin-bottom: 10px; }
+.readme-content li { margin: 2px 0; }
+
+.readme-content input[type="checkbox"] { margin-right: 4px; }
+
+/* ── Language bar ──────────────────────────────────────────────── */
+.lang-bar-container { margin: 10px 0; }
+
+.lang-bar {
+  height: 8px;
+  border-radius: 4px;
+  display: flex;
+  overflow: hidden;
+  border: 1px solid var(--border-soft);
+}
+
+.lang-bar-segment { height: 100%; transition: flex .3s; }
+
+.lang-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.lang-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.lang-legend-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* ── Repo listing ──────────────────────────────────────────────── */
+.repo-list { margin-top: 8px; }
+
+.repo-entry {
+  border-bottom: 1px solid var(--border-soft);
+  padding: 12px 0;
+  cursor: pointer;
+  transition: background .1s;
+}
+
+.repo-entry:hover { background: #f5f5f5; padding-left: 8px; margin-left: -8px; padding-right: 8px; margin-right: -8px; }
+
+.repo-entry-header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.repo-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--link);
+  font-family: var(--font-sans);
+}
+
+.repo-full-name {
+  font-size: 12px;
+  color: var(--text-light);
+}
+
+.repo-badges { display: flex; gap: 6px; margin-left: auto; flex-shrink: 0; }
+
+.badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  border: 1px solid var(--border-soft);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.badge.star { color: #b5830e; border-color: #f0c060; background: #fffbf0; }
+.badge.fork { color: var(--text-muted); }
+.badge.lang { background: var(--code-bg); }
+.badge.archived { color: var(--danger); border-color: #f5c6c6; background: #fff5f5; }
+
+.repo-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+.repo-meta {
+  display: flex;
+  gap: 14px;
+  font-size: 11px;
+  color: var(--text-light);
+  flex-wrap: wrap;
+}
+
+.repo-topics {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+
+.topic-pill {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: #ddeeff;
+  color: #2255aa;
+  border: 1px solid #b8d0f0;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.topic-pill:hover { background: #c8e0ff; }
+
+/* ── File tree ─────────────────────────────────────────────────── */
+.file-tree {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--code-bg);
+  border: 1px solid var(--border-soft);
+  border-radius: 2px;
+  padding: 10px 14px;
+  max-height: 300px;
+  overflow-y: auto;
+  column-count: 2;
+  column-gap: 20px;
+}
+
+.file-tree-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 0;
+  color: var(--text);
+  break-inside: avoid;
+}
+
+.file-tree-item .ft-icon { color: var(--text-light); font-size: 11px; }
+.file-tree-item.dir { color: var(--link); font-weight: 500; }
+
+/* ── Contributors ──────────────────────────────────────────────── */
+.contributors {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.contributor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.contributor img {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--border-soft);
+}
+
+/* ── Pagination ────────────────────────────────────────────────── */
+.pagination {
+  display: flex;
+  gap: 6px;
+  margin-top: 20px;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-btn {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--link);
+  font-family: var(--font-sans);
+}
+
+.page-btn:hover { background: var(--bg); }
+.page-btn:disabled { color: var(--text-light); cursor: default; background: var(--bg); }
+.page-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+/* ── Loading / States ──────────────────────────────────────────── */
+.loading {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.loading::after {
+  content: '';
+  display: inline-block;
+  width: 14px; height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.error-box {
+  background: #fff5f5;
+  border: 1px solid #f5c6c6;
+  border-radius: 2px;
+  padding: 14px 18px;
+  color: var(--danger);
+  font-size: 13px;
+  margin: 20px 0;
+}
+
+.notice {
+  background: #fffbf0;
+  border: 1px solid #f0c060;
+  border-left: 4px solid var(--warn);
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #604000;
+  margin-bottom: 16px;
+  border-radius: 0 2px 2px 0;
+}
+
+/* ── Filters bar ───────────────────────────────────────────────── */
+.filters-bar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  background: var(--surface);
+  border: 1px solid var(--border-soft);
+  padding: 8px 12px;
+  border-radius: 2px;
+}
+
+.filters-bar label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.filter-select {
+  border: 1px solid var(--border);
+  border-radius: 2px;
+  padding: 3px 8px;
+  font-size: 12px;
+  font-family: var(--font-sans);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.filter-select:focus { outline: none; border-color: var(--accent); }
+
+.result-count {
+  margin-left: auto;
+  font-size: 12px;
+  color: var(--text-light);
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #c8ccd1; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #a2a9b1; }
+
+/* ── Responsive ────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  #sidebar { width: 200px; min-width: 200px; }
+  #content { padding: 16px; }
+  .infobox { float: none; width: 100%; margin: 0 0 16px 0; }
+  .toc { float: none; width: 100%; max-width: 100%; }
+  .file-tree { column-count: 1; }
+}
+</style>
+</head>
+<body>
+
+<div id="shell">
+
+<!-- ── Sidebar ─────────────────────────────────────── -->
+<nav id="sidebar">
+<div class="sidebar-logo">
+<h1>🐙 GitWiki</h1>
+<p>GitHub as an encyclopedia</p>
+</div>
+
+<div class="sidebar-section">
+<div class="sidebar-section-title">Navigate</div>
+<button class="sidebar-item" onclick="showHome()">
+<span class="icon">🏠</span> Main Page
+</button>
+<button class="sidebar-item" onclick="showTrending()">
+<span class="icon">🔥</span> Trending
+</button>
+</div>
+
+<div class="sidebar-section">
+<div class="sidebar-section-title">Topics</div>
+<div id="sidebar-topics"></div>
+</div>
+
+<div class="sidebar-section">
+<div class="sidebar-section-title">Languages</div>
+<div id="sidebar-langs"></div>
+</div>
+
+<div id="sidebar-footer">
+Data from GitHub API · Cached locally<br>
+<span id="rate-info" style="color:var(--text-light)">Loading rate limit…</span>
+</div>
+</nav>
+
+<!-- ── Main ────────────────────────────────────────── -->
+<div id="main">
+<div id="topbar">
+<div class="breadcrumb" id="breadcrumb">
+<a href="#" onclick="showHome()">GitWiki</a>
+</div>
+<div id="search-bar">
+<input id="search-input" type="text" placeholder="Search GitHub repos…" onkeydown="if(event.key==='Enter') doSearch()">
+<button id="search-btn" onclick="doSearch()">Search</button>
+</div>
+<button id="dark-toggle" onclick="toggleDark()" title="Toggle dark mode">
+<span id="dark-icon">🌙</span>
+<div class="toggle-track"><div class="toggle-thumb"></div></div>
+</button>
+<button id="download-btn" onclick="openDownloadModal()">
+⬇ Download DB
+</button>
+<div id="rate-badge" class="rate-badge" title="GitHub API rate limit remaining">… req left</div>
+</div>
+
+<div id="content">
+<div class="loading">Loading GitWiki…</div>
+</div>
+</div>
+</div>
+
+<!-- ── Download Modal ──────────────────────────────────────── -->
+<div id="modal-overlay" onclick="if(event.target===this)closeDownloadModal()">
+<div id="modal">
+<div class="modal-header">
+<h2>⬇ Build Local Database</h2>
+<button id="modal-close" onclick="closeDownloadModal()">×</button>
+</div>
+<div class="modal-body">
+
+<div class="modal-section-title">Export Format</div>
+<div class="format-grid">
+<div class="format-card selected" id="fmt-json" onclick="selectFormat('json')">
+<div class="fmt-icon">📄</div>
+<div class="fmt-name">JSON</div>
+<div class="fmt-desc">Full data, one file. Best for scripts & APIs.</div>
+</div>
+<div class="format-card" id="fmt-csv" onclick="selectFormat('csv')">
+<div class="fmt-icon">📊</div>
+<div class="fmt-name">CSV</div>
+<div class="fmt-desc">Opens in Excel / Sheets. Metadata only.</div>
+</div>
+<div class="format-card" id="fmt-sqlite" onclick="selectFormat('sqlite')">
+<div class="fmt-icon">🗄️</div>
+<div class="fmt-name">SQLite</div>
+<div class="fmt-desc">Query with SQL. Best for deep analysis.</div>
+</div>
+</div>
+
+<div class="modal-section-title">Scope — What to Download</div>
+<div class="scope-options">
+<div class="scope-option selected" id="scope-cache" onclick="selectScope('cache')">
+<input type="radio" name="scope" checked>
+<div>
+<div class="scope-option-label">Cached repos only <span style="color:var(--success);font-size:11px">⚡ instant</span></div>
+<div class="scope-option-desc">Everything you've already browsed this session — zero extra API calls.</div>
+</div>
+</div>
+<div class="scope-option" id="scope-topic" onclick="selectScope('topic')">
+<input type="radio" name="scope">
+<div>
+<div class="scope-option-label">Current topic / search results</div>
+<div class="scope-option-desc">Fetches all pages of whatever topic or search you're currently on.</div>
+</div>
+</div>
+<div class="scope-option" id="scope-full" onclick="selectScope('full')">
+<input type="radio" name="scope">
+<div>
+<div class="scope-option-label">Full topic crawl <span style="color:var(--warn);font-size:11px">⚠ uses API quota</span></div>
+<div class="scope-option-desc">Downloads all repos across all your configured topics. May take a few minutes.</div>
+</div>
+</div>
+</div>
+
+<div id="download-progress">
+<div id="progress-text">Fetching repos…</div>
+<div class="progress-bar-wrap">
+<div class="progress-bar-fill" id="progress-fill"></div>
+</div>
+</div>
+
+<div class="modal-actions">
+<button class="btn-secondary" onclick="closeDownloadModal()">Cancel</button>
+<button class="btn-primary" id="start-download-btn" onclick="startDownload()">⬇ Download</button>
+</div>
+</div>
+</div>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+const state = {
+  config: null,
+  currentPage: 'home',
+  currentTopic: null,
+  currentLang: null,
+  page: 1,
+};
+
+// ── API ───────────────────────────────────────────────────────────────────────
+async function api(path) {
+  const r = await fetch(path);
+  if (r.status === 429) {
+    const j = await r.json().catch(() => ({}));
+    throw { rate_limited: true, retry: j.retry_after || 60 };
+  }
+  if (!r.ok) throw new Error(`API error ${r.status}`);
+  return r.json();
+}
+
+// ── Render helpers ────────────────────────────────────────────────────────────
+const content = () => document.getElementById('content');
+const loading  = (msg='Loading…') => content().innerHTML = `<div class="loading">${msg}</div>`;
+
+function setContent(html) { content().innerHTML = html; }
+
+function setBreadcrumb(parts) {
+  const bc = document.getElementById('breadcrumb');
+  const home = `<a href="#" onclick="showHome()">GitWiki</a>`;
+  const trail = parts.map((p, i) =>
+  i < parts.length - 1
+  ? `<span> › </span><a href="#" onclick="${p.fn}">${p.label}</a>`
+  : `<span> › </span><span>${p.label}</span>`
+  ).join('');
+  bc.innerHTML = home + trail;
+}
+
+function formatNumber(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+  return n.toString();
+}
+
+function timeAgo(iso) {
+  if (!iso) return '';
+  const diff = Date.now() - new Date(iso).getTime();
+  const d = Math.floor(diff / 86400000);
+  if (d === 0) return 'today';
+  if (d === 1) return 'yesterday';
+  if (d < 30) return `${d}d ago`;
+  if (d < 365) return `${Math.floor(d/30)}mo ago`;
+  return `${Math.floor(d/365)}y ago`;
+}
+
+function langColor(lang) {
+  const colors = {
+    Python:'#3572A5', JavaScript:'#F1E05A', TypeScript:'#3178C6',
+    Rust:'#DEA584', Go:'#00ADD8', Java:'#B07219', 'C++':'#F34B7D',
+    C:'#555555', Ruby:'#CC342D', Swift:'#F05138', Kotlin:'#A97BFF',
+    PHP:'#4F5D95', Shell:'#89E051', HTML:'#E44B23', CSS:'#563D7C',
+    Vue:'#4FC08D', Dart:'#00B4AB', Scala:'#C22D40', Haskell:'#5E5086',
+    Lua:'#000080', R:'#198CE7', Julia:'#A270BA', Elixir:'#6E4A7E',
+  };
+  return colors[lang] || '#8B8B8B';
+}
+
+// ── Repo card (listing) ───────────────────────────────────────────────────────
+function repoEntryHTML(r) {
+  const stars = `<span class="badge star">★ ${formatNumber(r.stars)}</span>`;
+  const forks = r.forks > 0 ? `<span class="badge fork">⑂ ${formatNumber(r.forks)}</span>` : '';
+  const lang  = r.language && r.language !== 'Unknown'
+  ? `<span class="badge lang" style="border-left:3px solid ${langColor(r.language)}">${r.language}</span>` : '';
+  const arch  = r.is_archived ? `<span class="badge archived">archived</span>` : '';
+  const topics = r.topics.slice(0, 5).map(t =>
+  `<a class="topic-pill" onclick="searchTopic('${t}')">${t}</a>`
+  ).join('');
+  
+  return `
+  <div class="repo-entry" onclick="showRepo('${r.owner}', '${r.name}')">
+  <div class="repo-entry-header">
+  <span class="repo-name">${r.name}</span>
+  <span class="repo-full-name">${r.full_name}</span>
+  <div class="repo-badges">${stars}${forks}${lang}${arch}</div>
+  </div>
+  ${r.description ? `<div class="repo-desc">${escHtml(r.description)}</div>` : ''}
+  <div class="repo-meta">
+  <span>Updated ${timeAgo(r.updated_at)}</span>
+  ${r.license !== 'No license' ? `<span>📄 ${r.license}</span>` : ''}
+  ${r.size_kb > 0 ? `<span>${formatKB(r.size_kb)}</span>` : ''}
+  </div>
+  ${topics ? `<div class="repo-topics">${topics}</div>` : ''}
+  </div>`;
+}
+
+function formatKB(kb) {
+  if (kb > 1024 * 1024) return (kb / 1024 / 1024).toFixed(1) + ' GB';
+  if (kb > 1024) return (kb / 1024).toFixed(1) + ' MB';
+  return kb + ' KB';
+}
+
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Language bar ──────────────────────────────────────────────────────────────
+function langBarHTML(langs) {
+  if (!langs || langs.length === 0) return '';
+  const segments = langs.map(l =>
+  `<div class="lang-bar-segment" style="flex:${l.pct};background:${langColor(l.name)}" title="${l.name} ${l.pct}%"></div>`
+  ).join('');
+  const legend = langs.map(l =>
+  `<span class="lang-legend-item"><span class="lang-legend-dot" style="background:${langColor(l.name)}"></span>${l.name} <b>${l.pct}%</b></span>`
+  ).join('');
+  return `
+  <div class="lang-bar-container">
+  <div class="lang-bar">${segments}</div>
+  <div class="lang-legend">${legend}</div>
+  </div>`;
+}
+
+// ── Infobox ───────────────────────────────────────────────────────────────────
+function infoboxRow(label, value) {
+  if (!value) return '';
+  return `<div class="infobox-row"><div class="infobox-label">${label}</div><div class="infobox-value">${value}</div></div>`;
+}
+
+function repoInfoboxHTML(r) {
+  const updated = r.updated_at ? new Date(r.updated_at).toLocaleDateString('en-US', {year:'numeric',month:'long',day:'numeric'}) : '';
+  const created = r.created_at ? new Date(r.created_at).toLocaleDateString('en-US', {year:'numeric',month:'long'}) : '';
+  
+  return `
+  <div class="infobox">
+  <div class="infobox-title">Repository</div>
+  ${infoboxRow('Owner', `<a href="https://github.com/${r.owner}" target="_blank">${r.owner}</a>`)}
+  ${infoboxRow('Language', r.primary_language || r.language || '')}
+  ${infoboxRow('Stars', formatNumber(r.stars) + ' ⭐')}
+  ${infoboxRow('Forks', formatNumber(r.forks))}
+  ${infoboxRow('Issues', r.open_issues > 0 ? r.open_issues + ' open' : '0')}
+  ${infoboxRow('License', r.license || '')}
+  ${infoboxRow('Created', created)}
+  ${infoboxRow('Updated', updated)}
+  ${r.homepage ? infoboxRow('Website', `<a href="${r.homepage}" target="_blank">🔗 Homepage</a>`) : ''}
+  ${infoboxRow('Branch', r.default_branch)}
+  ${r.size_kb ? infoboxRow('Size', formatKB(r.size_kb)) : ''}
+  <div class="infobox-row">
+  <div class="infobox-label">GitHub</div>
+  <div class="infobox-value"><a href="${r.url}" target="_blank">View on GitHub ↗</a></div>
+  </div>
+  </div>`;
+}
+
+// ── Pages ─────────────────────────────────────────────────────────────────────
+
+// HOME
+function showHome() {
+  state.currentPage = 'home';
+  setBreadcrumb([]);
+  setSidebarActive(null);
+  
+  const topics = state.config.topics.map(t => `
+  <div class="topic-card" onclick="showTopic('${t.id}')">
+  <div class="topic-card-header">
+  <span class="topic-card-icon">${t.icon}</span>
+  <h3>${t.label}</h3>
+  </div>
+  <p>${t.description}</p>
+  </div>
+  `).join('');
+  
+  const langs = state.config.languages.map(l => `
+  <div class="topic-card" onclick="showLanguage('${l.id}')">
+  <div class="topic-card-header">
+  <span class="lang-dot" style="background:${l.color};width:14px;height:14px;border-radius:50%;display:inline-block"></span>
+  <h3>${l.label}</h3>
+  </div>
+  <p>Browse top ${l.label} repositories across all topics.</p>
+  </div>
+  `).join('');
+  
+  const tokenNotice = !state.config.authenticated
+  ? `<div class="notice">⚠️ Running without a GitHub token — limited to 60 requests/hour. <a href="https://github.com/settings/tokens" target="_blank">Get a free token</a>, then set <code>GITHUB_TOKEN=ghp_xxx python server.py</code></div>`
+  : '';
+  
+  setContent(`
+  <div class="wiki-article">
+  <div class="home-banner">
+  <h2>Welcome to GitWiki</h2>
+  <p>A local, Wikipedia-style encyclopedia of GitHub. Browse by topic or language — repo pages load on demand.</p>
+  </div>
+  ${tokenNotice}
+  <div class="wiki-section">
+  <h2 class="wiki-h2">Browse by Topic</h2>
+  <div class="topic-grid">${topics}</div>
+  </div>
+  <div class="wiki-section">
+  <h2 class="wiki-h2">Browse by Language</h2>
+  <div class="topic-grid">${langs}</div>
+  </div>
+  </div>
+  `);
+}
+
+// TOPIC PAGE
+async function showTopic(topicId, page = 1, langFilter = '') {
+  state.currentPage = 'topic';
+  state.currentTopic = topicId;
+  state.page = page;
+  
+  const topic = state.config.topics.find(t => t.id === topicId);
+  setSidebarActive('topic-' + topicId);
+  setBreadcrumb([{ label: topic.label, fn: `showTopic('${topicId}')` }]);
+  loading(`Loading ${topic.label}…`);
+  
+  try {
+    const url = `/api/topic/${topicId}?page=${page}${langFilter ? '&language=' + langFilter : ''}`;
+    const data = await api(url);
+    renderRepoList(data, { topicId, langFilter });
+  } catch(e) {
+    handleError(e);
+  }
+}
+
+// LANGUAGE PAGE
+async function showLanguage(langId, page = 1) {
+  state.currentPage = 'language';
+  state.currentLang = langId;
+  state.page = page;
+  
+  const lang = state.config.languages.find(l => l.id === langId);
+  setSidebarActive('lang-' + langId);
+  setBreadcrumb([{ label: lang.label + ' repos', fn: `showLanguage('${langId}')` }]);
+  loading(`Loading ${lang.label} repositories…`);
+  
+  try {
+    const data = await api(`/api/language/${langId}?page=${page}`);
+    renderRepoList(data, { langId });
+  } catch(e) {
+    handleError(e);
+  }
+}
+
+// TRENDING
+async function showTrending(page = 1, langFilter = '') {
+  state.currentPage = 'trending';
+  state.page = page;
+  setSidebarActive('trending');
+  setBreadcrumb([{ label: 'Trending', fn: `showTrending()` }]);
+  loading('Loading trending repositories…');
+  
+  try {
+    const url = `/api/trending?page=${page}${langFilter ? '&language=' + langFilter : ''}`;
+    const data = await api(url);
+    renderRepoList(data, { trending: true, langFilter });
+  } catch(e) {
+    handleError(e);
+  }
+}
+
+// SEARCH
+async function doSearch(page = 1) {
+  const q = document.getElementById('search-input').value.trim();
+  if (!q) return;
+  
+  state.currentPage = 'search';
+  state.page = page;
+  setSidebarActive(null);
+  setBreadcrumb([{ label: `Search: "${q}"`, fn: `doSearch()` }]);
+  loading(`Searching for "${q}"…`);
+  
+  try {
+    const data = await api(`/api/search?q=${encodeURIComponent(q)}&page=${page}`);
+    renderRepoList(data, { search: q });
+  } catch(e) {
+    handleError(e);
+  }
+}
+
+function searchTopic(topic) {
+  document.getElementById('search-input').value = topic;
+  doSearch();
+}
+
+// REPO PAGE (lazy loaded)
+async function showRepo(owner, repo) {
+  state.currentPage = 'repo';
+  setBreadcrumb([
+    { label: owner, fn: `doSearch()` },
+                { label: repo, fn: `showRepo('${owner}','${repo}')` }
+  ]);
+  loading(`Loading ${owner}/${repo}…`);
+  
+  try {
+    const r = await api(`/api/repo/${owner}/${repo}`);
+    renderRepoPage(r);
+  } catch(e) {
+    handleError(e);
+  }
+}
+
+// ── Render: repo list ─────────────────────────────────────────────────────────
+function renderRepoList(data, ctx) {
+  const repos = data.repos || [];
+  const total = data.total || 0;
+  const page  = data.page || 1;
+  const perPage = 30;
+  const totalPages = Math.min(Math.ceil(total / perPage), 34); // GH API limit
+  
+  // Title
+  let title = 'Results';
+  if (ctx.topicId) {
+    const t = state.config.topics.find(t => t.id === ctx.topicId);
+    title = `${t.icon} ${t.label}`;
+  } else if (ctx.langId) {
+    const l = state.config.languages.find(l => l.id === ctx.langId);
+    title = `${l.label} Repositories`;
+  } else if (ctx.trending) {
+    title = '🔥 Trending This Week';
+  } else if (ctx.search) {
+    title = `Search: "${ctx.search}"`;
+  }
+  
+  // Language filter
+  const langOptions = state.config.languages.map(l =>
+  `<option value="${l.id}" ${ctx.langFilter === l.id ? 'selected' : ''}>${l.label}</option>`
+  ).join('');
+  
+  let filterBar = '';
+  if (ctx.topicId || ctx.trending) {
+    const onChange = ctx.topicId
+    ? `showTopic('${ctx.topicId}', 1, this.value)`
+    : `showTrending(1, this.value)`;
+    filterBar = `
+    <div class="filters-bar">
+    <label>Filter by language:</label>
+    <select class="filter-select" onchange="${onChange}">
+    <option value="">All languages</option>
+    ${langOptions}
+    </select>
+    <span class="result-count">${total.toLocaleString()} repositories</span>
+    </div>`;
+  } else {
+    filterBar = `
+    <div class="filters-bar">
+    <span class="result-count">${total.toLocaleString()} repositories found</span>
+    </div>`;
+  }
+  
+  // Pagination
+  const paginationFn = ctx.topicId ? `showTopic('${ctx.topicId}', PAGE, '${ctx.langFilter||''}')` :
+  ctx.langId  ? `showLanguage('${ctx.langId}', PAGE)` :
+  ctx.trending ? `showTrending(PAGE, '${ctx.langFilter||''}')` :
+  `doSearch(PAGE)`;
+  
+  let pagination = '';
+  if (totalPages > 1) {
+    const prev = page > 1 ? `<button class="page-btn" onclick="${paginationFn.replace('PAGE', page-1)}">← Prev</button>` : '';
+    const next = page < totalPages ? `<button class="page-btn" onclick="${paginationFn.replace('PAGE', page+1)}">Next →</button>` : '';
+    const pages = [];
+    for (let p = Math.max(1, page-2); p <= Math.min(totalPages, page+2); p++) {
+      pages.push(`<button class="page-btn ${p===page?'active':''}" onclick="${paginationFn.replace('PAGE', p)}">${p}</button>`);
+    }
+    pagination = `<div class="pagination">${prev}${pages.join('')}${next}</div>`;
+  }
+  
+  const repoItems = repos.length === 0
+  ? '<div class="loading" style="animation:none">No repositories found.</div>'
+  : repos.map(repoEntryHTML).join('');
+  
+  setContent(`
+  <div class="wiki-article">
+  <h1 class="wiki-title">${title}</h1>
+  <p class="wiki-subtitle">Page ${page} · Sorted by stars · Min ${state.config.min_stars} stars</p>
+  ${filterBar}
+  <div class="repo-list">${repoItems}</div>
+  ${pagination}
+  </div>
+  `);
+}
+
+// ── Render: full repo page ────────────────────────────────────────────────────
+function renderRepoPage(r) {
+  const topics = r.topics.slice(0,10).map(t =>
+  `<a class="topic-pill" onclick="searchTopic('${t}')">${t}</a>`
+  ).join(' ');
+  
+  const releases = (r.releases || []).map(rel =>
+  `<li><a href="${rel.url}" target="_blank">${escHtml(rel.name)}</a> — <small>${timeAgo(rel.date)}</small></li>`
+  ).join('');
+  
+  const contributors = (r.contributors || []).map(c =>
+  `<div class="contributor"><img src="${c.avatar}" alt="${c.login}"><span><strong>${c.login}</strong> · ${c.contributions} commits</span></div>`
+  ).join('');
+  
+  const fileTree = (r.file_tree || []).map(f => {
+    const isDir = f.type === 'tree';
+    return `<div class="file-tree-item ${isDir ? 'dir' : ''}">
+    <span class="ft-icon">${isDir ? '📁' : '📄'}</span>
+    ${escHtml(f.path)}
+    </div>`;
+  }).join('');
+  
+  const readmeHtml = r.readme_html
+  ? `<div class="readme-content">${r.readme_html}</div>`
+  : `<p style="color:var(--text-muted);font-style:italic">No README found.</p>`;
+  
+  const tocItems = [
+    r.readme_html ? '1. README' : null,
+    '2. Languages',
+    r.file_tree?.length ? '3. File Structure' : null,
+    r.contributors?.length ? '4. Contributors' : null,
+    r.releases?.length ? '5. Releases' : null,
+  ].filter(Boolean);
+  
+  const toc = `
+  <div class="toc">
+  <div class="toc-title">Contents</div>
+  <ol>
+  ${tocItems.map(i => `<li><a href="#section-${i.split('.')[0]}">${i.split('. ')[1]}</a></li>`).join('')}
+  </ol>
+  </div>`;
+  
+  setContent(`
+  <div class="wiki-article">
+  <h1 class="wiki-title">${r.name}</h1>
+  <div class="wiki-subtitle">
+  From GitWiki, the GitHub encyclopedia ·
+  <a href="${r.url}" target="_blank">View on GitHub ↗</a>
+  ${r.is_archived ? ' · <span style="color:var(--danger)">This repository is archived</span>' : ''}
+  </div>
+  
+  ${repoInfoboxHTML(r)}
+  ${toc}
+  
+  <p style="margin-bottom:12px;font-size:14px;color:var(--text)">
+  <strong>${r.full_name}</strong> is a ${r.is_fork ? 'forked' : 'public'} repository
+  ${r.language && r.language !== 'Unknown' ? `written primarily in <strong>${r.language}</strong>` : ''}.
+  ${r.description ? escHtml(r.description) : ''}
+  It was created by <a href="https://github.com/${r.owner}" target="_blank">${r.owner}</a>
+  and has ${formatNumber(r.stars)} stars and ${formatNumber(r.forks)} forks.
+  </p>
+  
+  ${topics ? `<p style="margin-bottom:16px">${topics}</p>` : ''}
+  
+  <div class="wiki-section" id="section-1">
+  <h2 class="wiki-h2">README</h2>
+  ${readmeHtml}
+  </div>
+  
+  <div class="wiki-section" id="section-2">
+  <h2 class="wiki-h2">Languages</h2>
+  ${langBarHTML(r.languages)}
+  ${r.languages.length === 0 ? '<p style="color:var(--text-muted)">No language data.</p>' : ''}
+  </div>
+  
+  ${fileTree ? `
+    <div class="wiki-section" id="section-3">
+    <h2 class="wiki-h2">File Structure</h2>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:6px">Top-level files and directories (up to 80 entries).</p>
+    <div class="file-tree">${fileTree}</div>
+    </div>` : ''}
+    
+    ${contributors ? `
+      <div class="wiki-section" id="section-4">
+      <h2 class="wiki-h2">Top Contributors</h2>
+      <div class="contributors">${contributors}</div>
+      </div>` : ''}
+      
+      ${releases ? `
+        <div class="wiki-section" id="section-5">
+        <h2 class="wiki-h2">Recent Releases</h2>
+        <ul style="padding-left:18px;font-size:13px">${releases}</ul>
+        </div>` : ''}
+        
+        </div>
+        `);
+}
+
+// ── Error handler ─────────────────────────────────────────────────────────────
+function handleError(e) {
+  if (e.rate_limited) {
+    setContent(`
+    <div class="error-box">
+    <strong>GitHub API Rate Limited</strong><br>
+    You've hit GitHub's request limit. Retry in ${e.retry || 60} seconds.<br><br>
+    <strong>Fix:</strong> Set a GitHub token for 5,000 requests/hour:<br>
+    <code>export GITHUB_TOKEN=ghp_yourtoken && python server.py</code><br>
+    Get a free token at: <a href="https://github.com/settings/tokens" target="_blank">github.com/settings/tokens</a>
+    </div>`);
+  } else {
+    setContent(`<div class="error-box"><strong>Error:</strong> ${e.message || 'Something went wrong.'}</div>`);
+  }
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+function buildSidebar(config) {
+  const topics = document.getElementById('sidebar-topics');
+  const langs  = document.getElementById('sidebar-langs');
+  
+  topics.innerHTML = config.topics.map(t => `
+  <button class="sidebar-item" id="sidebar-topic-${t.id}" onclick="showTopic('${t.id}')">
+  <span class="icon">${t.icon}</span>
+  <span>${t.label}</span>
+  </button>
+  `).join('');
+  
+  langs.innerHTML = config.languages.map(l => `
+  <button class="sidebar-item" id="sidebar-lang-${l.id}" onclick="showLanguage('${l.id}')">
+  <span class="lang-dot" style="background:${l.color}"></span>
+  <span>${l.label}</span>
+  </button>
+  `).join('');
+}
+
+function setSidebarActive(id) {
+  document.querySelectorAll('.sidebar-item').forEach(el => el.classList.remove('active'));
+  if (id) {
+    const el = document.getElementById(`sidebar-${id}`);
+    if (el) el.classList.add('active');
+  }
+}
+
+// ── Rate limit badge ──────────────────────────────────────────────────────────
+async function updateRateLimit() {
+  try {
+    const data = await api('/api/rate-limit');
+    const badge = document.getElementById('rate-badge');
+    const info  = document.getElementById('rate-info');
+    if (data.remaining !== undefined) {
+      badge.textContent = `${data.remaining}/${data.limit} API req`;
+      badge.title = `GitHub Search API: ${data.remaining} of ${data.limit} requests remaining`;
+      info.textContent = `${data.remaining} / ${data.limit} req remaining`;
+      if (data.remaining < 5) {
+        badge.style.color = 'var(--danger)';
+        badge.style.borderColor = '#f5c6c6';
+      }
+    }
+  } catch(e) {}
+}
+
+// ── Dark Mode ─────────────────────────────────────────────────────────────────
+function toggleDark() {
+  const isDark = document.body.classList.toggle('dark');
+  document.getElementById('dark-icon').textContent = isDark ? '☀️' : '🌙';
+  localStorage.setItem('gitwiki-dark', isDark ? '1' : '0');
+}
+
+function initDarkMode() {
+  const saved = localStorage.getItem('gitwiki-dark');
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+  if (saved === '1' || (saved === null && prefersDark)) {
+    document.body.classList.add('dark');
+    document.getElementById('dark-icon').textContent = '☀️';
+  }
+}
+
+// ── Download Modal ────────────────────────────────────────────────────────────
+let dlFormat = 'json';
+let dlScope  = 'cache';
+
+function openDownloadModal() {
+  document.getElementById('modal-overlay').classList.add('open');
+  document.getElementById('download-progress').style.display = 'none';
+  document.getElementById('start-download-btn').disabled = false;
+  document.getElementById('start-download-btn').textContent = '⬇ Download';
+  document.getElementById('progress-fill').style.width = '0%';
+  document.getElementById('progress-text').textContent = 'Fetching repos…';
+}
+
+function closeDownloadModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+}
+
+function selectFormat(fmt) {
+  dlFormat = fmt;
+  ['json','csv','sqlite'].forEach(f => {
+    document.getElementById('fmt-' + f).classList.toggle('selected', f === fmt);
+  });
+}
+
+function selectScope(scope) {
+  dlScope = scope;
+  ['cache','topic','full'].forEach(s => {
+    const el = document.getElementById('scope-' + s);
+    el.classList.toggle('selected', s === scope);
+    el.querySelector('input').checked = (s === scope);
+  });
+}
+
+async function startDownload() {
+  const btn = document.getElementById('start-download-btn');
+  const progress = document.getElementById('download-progress');
+  const fill = document.getElementById('progress-fill');
+  const progressText = document.getElementById('progress-text');
+  
+  btn.disabled = true;
+  btn.textContent = 'Preparing…';
+  progress.style.display = 'block';
+  
+  try {
+    let repos = [];
+    
+    if (dlScope === 'cache') {
+      // Pull from server cache — instant
+      progressText.textContent = 'Reading local cache…';
+      fill.style.width = '30%';
+      const data = await api('/api/db/cached');
+      repos = data.repos || [];
+      fill.style.width = '100%';
+      
+    } else if (dlScope === 'topic') {
+      // Fetch all pages of current topic/search
+      const ctx = getCurrentContext();
+      progressText.textContent = `Fetching ${ctx.label}…`;
+      repos = await fetchAllPages(ctx, (p, total) => {
+        fill.style.width = Math.min(95, (p / Math.max(total, 1)) * 100) + '%';
+        progressText.textContent = `Fetched ${repos.length} repos…`;
+      });
+      fill.style.width = '100%';
+      
+    } else {
+      // Full crawl of all topics
+      const topics = state.config.topics.filter(t => t.id !== 'trending');
+      let done = 0;
+      for (const topic of topics) {
+        progressText.textContent = `Crawling: ${topic.label}…`;
+        const ctx = { type: 'topic', id: topic.id, label: topic.label };
+        const batch = await fetchAllPages(ctx, () => {});
+        repos.push(...batch);
+        done++;
+        fill.style.width = ((done / topics.length) * 95) + '%';
+      }
+      // Deduplicate by repo id
+      const seen = new Set();
+      repos = repos.filter(r => { if (seen.has(r.id)) return false; seen.add(r.id); return true; });
+      fill.style.width = '100%';
+    }
+    
+    progressText.textContent = `Generating ${dlFormat.toUpperCase()} with ${repos.length} repos…`;
+    
+    if (dlFormat === 'json') {
+      downloadJSON(repos);
+    } else if (dlFormat === 'csv') {
+      downloadCSV(repos);
+    } else {
+      // SQLite: ask server to build it
+      await downloadSQLite(repos);
+    }
+    
+    btn.textContent = '✅ Downloaded!';
+    setTimeout(closeDownloadModal, 1200);
+    
+  } catch(e) {
+    progressText.textContent = '❌ Error: ' + (e.message || 'Something went wrong');
+    btn.disabled = false;
+    btn.textContent = '⬇ Retry';
+  }
+}
+
+function getCurrentContext() {
+  if (state.currentPage === 'topic' && state.currentTopic) {
+    const t = state.config.topics.find(t => t.id === state.currentTopic);
+    return { type: 'topic', id: state.currentTopic, label: t?.label || state.currentTopic };
+  }
+  if (state.currentPage === 'language' && state.currentLang) {
+    const l = state.config.languages.find(l => l.id === state.currentLang);
+    return { type: 'language', id: state.currentLang, label: l?.label || state.currentLang };
+  }
+  if (state.currentPage === 'search') {
+    const q = document.getElementById('search-input').value.trim();
+    return { type: 'search', query: q, label: `Search: ${q}` };
+  }
+  // Default: first topic
+  const t = state.config.topics[0];
+  return { type: 'topic', id: t.id, label: t.label };
+}
+
+async function fetchAllPages(ctx, onProgress) {
+  const allRepos = [];
+  let page = 1;
+  const maxPages = 10; // 300 repos max per scope
+  
+  while (page <= maxPages) {
+    let url;
+    if (ctx.type === 'topic')    url = `/api/topic/${ctx.id}?page=${page}`;
+    else if (ctx.type === 'language') url = `/api/language/${ctx.id}?page=${page}`;
+    else url = `/api/search?q=${encodeURIComponent(ctx.query)}&page=${page}`;
+    
+    const data = await api(url);
+    const repos = data.repos || [];
+    allRepos.push(...repos);
+    onProgress(page, Math.ceil((data.total || repos.length) / 30));
+    if (repos.length < 30) break;
+    page++;
+    await new Promise(r => setTimeout(r, 300)); // be polite
+  }
+  return allRepos;
+}
+
+function downloadJSON(repos) {
+  const payload = {
+    generated_at: new Date().toISOString(),
+    total: repos.length,
+    repos,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+  triggerDownload(blob, `gitwiki_db_${dateStamp()}.json`);
+}
+
+function downloadCSV(repos) {
+  const cols = ['name','full_name','owner','description','url','stars','forks','watchers',
+  'open_issues','language','license','topics','created_at','updated_at',
+  'pushed_at','size_kb','is_fork','is_archived','homepage'];
+  const esc = v => {
+    if (v === null || v === undefined) return '';
+    const s = Array.isArray(v) ? v.join(';') : String(v);
+    return s.includes(',') || s.includes('"') || s.includes('\n')
+    ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  const rows = [cols.join(',')];
+  for (const r of repos) {
+    rows.push(cols.map(c => esc(r[c])).join(','));
+  }
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  triggerDownload(blob, `gitwiki_db_${dateStamp()}.csv`);
+}
+
+async function downloadSQLite(repos) {
+  // Ask server to generate SQLite and stream it back
+  const r = await fetch('/api/db/sqlite', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ repos }),
+  });
+  if (!r.ok) throw new Error('SQLite generation failed');
+  const blob = await r.blob();
+  triggerDownload(blob, `gitwiki_db_${dateStamp()}.db`);
+}
+
+function triggerDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+function dateStamp() {
+  return new Date().toISOString().slice(0,10).replace(/-/g,'');
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+async function init() {
+  initDarkMode();
+  try {
+    state.config = await api('/api/config');
+    buildSidebar(state.config);
+    showHome();
+    updateRateLimit();
+    setInterval(updateRateLimit, 60000);
+  } catch(e) {
+    setContent(`
+    <div class="error-box">
+    <strong>Cannot connect to GitWiki server.</strong><br>
+    Make sure the Python server is running:<br>
+    <code>pip install flask requests markdown2 && python server.py</code>
+    </div>`);
+  }
+}
+
+init();
+</script>
+</body>
+</html>
